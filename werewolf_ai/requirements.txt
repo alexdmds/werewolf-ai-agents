@@ -1,0 +1,3 @@
+# Dépendances minimales pour le projet Loup-Garou IA
+
+# Pas de dépendances externes requises pour la version minimale

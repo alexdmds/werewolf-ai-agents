@@ -1,0 +1,58 @@
+from typing import List
+from .actions import AgentAction
+
+class WerewolfGame:
+    def __init__(self, agents: List):
+        self.agents = agents
+        self.turn = 0
+        self.log = []
+
+    def play(self):
+        print("=== Début de la partie ===")
+        print("Joueurs en jeu :", ", ".join([a.name + f" ({a.role})" for a in self.agents]))
+        self.run_night_phase()
+        self.run_day_phase()
+        self.check_win_condition()
+        print("=== Fin de la partie ===")
+
+    def run_night_phase(self):
+        print("\n--- Phase de nuit ---")
+        for agent in self.agents:
+            if hasattr(agent, "night_action") and agent.status == "alive":
+                action = agent.night_action([a.name for a in self.agents if a.status == "alive"])
+                if action:
+                    print(f"{agent.name} ({agent.role}) agit la nuit : {action}")
+
+    def run_day_phase(self):
+        print("\n--- Phase de jour ---")
+        for agent in self.agents:
+            if hasattr(agent, "talk") and agent.status == "alive":
+                msg = agent.talk({})
+                print(f"{agent.name} dit : {msg}")
+        self.resolve_votes()
+
+    def resolve_votes(self):
+        print("\nRésolution des votes (exemple minimal)")
+        votes = {}
+        alive = [a for a in self.agents if a.status == "alive"]
+        for agent in alive:
+            vote = agent.vote([a.name for a in alive if a.name != agent.name])
+            if vote:
+                votes.setdefault(vote, 0)
+                votes[vote] += 1
+                print(f"{agent.name} vote contre {vote}")
+        if votes:
+            eliminated = max(votes, key=votes.get)
+            for agent in alive:
+                if agent.name == eliminated:
+                    agent.status = "dead"
+                    print(f"{eliminated} est éliminé !")
+                    break
+        else:
+            print("Aucun vote exprimé.")
+
+    def check_win_condition(self):
+        print("\nVérification de la condition de victoire (exemple minimal)")
+        # Affiche le statut des joueurs
+        for agent in self.agents:
+            print(f"{agent.name} : {agent.status}")
