@@ -2,13 +2,14 @@
 
 ## 📦 Structure générale du projet
 
+```text
 werewolf_ai/
 ├── agents/                  # Définition des rôles d’agents IA
 │   ├── base_agent.py        # Classe mère avec méthodes génériques
 │   ├── villager.py          # Villageois : rôle honnête, pas d’action de nuit
 │   ├── werewolf.py          # Loup-garou : bluffe + tue la nuit
 │   ├── seer.py              # Voyante : vision nocturne
-│   └── …                  # Autres rôles : sorcière, chasseur, etc.
+│   └── …                    # Autres rôles : sorcière, chasseur, etc.
 │
 ├── game/                    # Orchestration du jeu (moteur, tours, états)
 │   ├── game_engine.py       # Maître du jeu : boucle principale
@@ -34,6 +35,7 @@ werewolf_ai/
 ├── requirements.txt         # Dépendances Python
 ├── README.md                # Description du projet
 └── logs/                    # Logs des parties (markdown ou txt)
+```
 
 ---
 
@@ -141,55 +143,56 @@ Tu es un loup-garou. Tu fais semblant d’être villageois.
 Tu dois manipuler subtilement les autres joueurs.
 Tu sais que les autres loups sont : Agent B, Agent C.
 Réponds de manière crédible.
+```
 
+---
 
-⸻
-
-🚀 main.py : lancement d’une partie
+🚀 **main.py : lancement d’une partie**
 
 Contient typiquement :
 
+```python
 from game.game_engine import WerewolfGame
 from game.roles import assign_roles
 
 agents = assign_roles(nb_players=5)
 game = WerewolfGame(agents)
 game.play()
+```
 
+---
 
-⸻
-
-🔧 À faire pour démarrer
+🔧 **À faire pour démarrer**
 
 ✅ Créer 3 rôles de base :
-	•	Villageois (ne fait rien la nuit)
-	•	Loup-Garou (vote la nuit, bluffe le jour)
-	•	Voyante (voit un rôle la nuit)
+- Villageois (ne fait rien la nuit)
+- Loup-Garou (vote la nuit, bluffe le jour)
+- Voyante (voit un rôle la nuit)
 
 ✅ Implémenter :
-	•	talk()
-	•	vote()
-	•	night_action()
-	•	Prompts systèmes pour chaque rôle
+- `talk()`
+- `vote()`
+- `night_action()`
+- Prompts systèmes pour chaque rôle
 
 ✅ Orchestration basique :
-	•	Alternance jour/nuit
-	•	Élimination et fin du jeu
-	•	Log textuel de la partie (markdown ou terminal)
+- Alternance jour/nuit
+- Élimination et fin du jeu
+- Log textuel de la partie (markdown ou terminal)
 
-⸻
+---
 
-🧠 Extensions faciles ensuite
-	•	Ajouter des rôles (sorcière, chasseur…)
-	•	Ajouter une mémoire plus poussée
-	•	Ajouter une UI simple (Streamlit ?)
-	•	Ajouter un joueur humain dans la boucle
+🧠 **Extensions faciles ensuite**
+- Ajouter des rôles (sorcière, chasseur…)
+- Ajouter une mémoire plus poussée
+- Ajouter une UI simple (Streamlit ?)
+- Ajouter un joueur humain dans la boucle
 
-⸻
+---
 
-🎯 Objectifs du projet
+🎯 **Objectifs du projet**
 
 Ce projet est conçu pour :
-	•	être collaboratif (séparation claire des rôles)
-	•	être fun à tester (logs lisibles, surprises dans les réponses)
-	•	permettre des démos rapides et virales
+- être collaboratif (séparation claire des rôles)
+- être fun à tester (logs lisibles, surprises dans les réponses)
+- permettre des démos rapides et virales
