@@ -26,7 +26,7 @@ Tu sais que les autres loups sont : Agent B, Agent C.
 ## 🌙 Action de nuit des loups
 
 Chaque nuit :
-- Tous les loups doivent **secrètement voter** pour un joueur à éliminer (`night_action()`)
+- Tous les loups doivent **secrètement voter** pour un joueur à éliminer.
 - Aucun loup ne connaît le vote des autres au moment de voter (pas de discussion ni coordination)
 - Le vote se fait à bulletin "secret", de manière simultanée (simulation : chaque agent vote indépendamment)
 
@@ -70,7 +70,6 @@ Résultat : Agent F a été tué par les loups.
 
 ## 🧪 Implémentation recommandée
 
-- Dans `night_action()`, chaque loup renvoie simplement un nom (str)
 - Le `game_engine` gère l’agrégation et applique la règle de majorité
 - Le résumé est injecté via `agent.receive_info(...)` dans les loups uniquement
 - Les villageois ne reçoivent que la mention de la victime (s’il y en a une)

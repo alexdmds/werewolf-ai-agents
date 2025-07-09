@@ -10,56 +10,99 @@ class WerewolfGame:
     def play(self, max_turns=100):
         print("=== Début de la partie ===")
         print("Joueurs en jeu :", ", ".join([a.name + f" ({a.role})" for a in self.agents]))
+        self.turn = 0
         while not self.is_game_over() and self.turn < max_turns:
             self.turn += 1
             print(f"\n===== Tour {self.turn} =====")
-            self.run_night_phase()
-            self.run_day_phase()
+            self.night_phase()
+            self.day_phase()
             self.check_win_condition()
         if self.turn >= max_turns:
             print(f"\n=== Fin de la partie : nombre maximal de tours ({max_turns}) atteint ===")
         else:
             print("=== Fin de la partie ===")
 
-    def run_night_phase(self):
+    def night_phase(self):
         print("\n--- Phase de nuit ---")
-        for agent in self.agents:
-            if hasattr(agent, "night_action") and agent.status == "alive":
-                action = agent.night_action(self)
-                if action:
-                    print(f"{agent.name} ({agent.role}) agit la nuit : {action}")
+        # 1. Voyante agit en premier
+        seer = next((a for a in self.agents if a.role == "Seer" and a.status == "alive"), None)
+        if seer:
+            cible_id = seer.spy(self)
+            cible = next((a for a in self.agents if a.agent_id == cible_id), None) if cible_id else None
+            print(f"Voyante ({seer.name}) agit : {cible.name if cible else 'aucune cible'}")
+        # 2. Loups votent individuellement
+        wolves = [a for a in self.agents if a.role == "Werewolf" and a.status == "alive"]
+        wolf_votes = {}
+        for wolf in wolves:
+            cible_id = wolf.vote_to_kill(self)
+            wolf_votes[wolf.agent_id] = cible_id
+            cible = next((a for a in self.agents if a.agent_id == cible_id), None) if cible_id else None
+            print(f"Loup {wolf.name} a voté : {cible.name if cible else 'aucune cible'}")
+        # 3. On informe chaque loup du vote de chaque loup
+        for wolf in wolves:
+            votes_info = ", ".join([f"{w.name} → {wolf_votes[w.agent_id]}" for w in wolves])
+            wolf.memory.add(f"Votes des loups cette nuit : {votes_info}")
+        # 4. Calcul de la majorité
+        vote_targets = [cible_id for cible_id in wolf_votes.values() if cible_id]
+        if vote_targets:
+            from collections import Counter
+            count = Counter(vote_targets)
+            cible_majoritaire, nb = count.most_common(1)[0]
+            if nb > len(wolves)//2:
+                # Trouve l'agent cible
+                cible_agent = next((a for a in self.agents if a.agent_id == cible_majoritaire and a.status == "alive"), None)
+                if cible_agent:
+                    cible_agent.status = "dead"
+                    self.night_victim = cible_agent
+                    print(f">>> Victime de la nuit : {cible_agent.name} <<<")
+                else:
+                    self.night_victim = None
+            else:
+                self.night_victim = None
+                print(">>> Pas de majorité, personne n'est éliminé cette nuit. <<<")
+        else:
+            self.night_victim = None
+            print(">>> Aucun vote de loup valide cette nuit. <<<")
 
-    def run_day_phase(self):
+    def day_phase(self):
         print("\n--- Phase de jour ---")
+        # 1. Annonce de la victime de la nuit
+        if hasattr(self, 'night_victim') and self.night_victim:
+            print(f"Le village découvre au matin que {self.night_victim.name} a été tué pendant la nuit !")
+        else:
+            print("Le village découvre au matin qu'il n'y a pas eu de victime cette nuit.")
+        # 2. Chaque agent vivant prend la parole
         for agent in self.agents:
             if hasattr(agent, "talk") and agent.status == "alive":
                 msg = agent.talk(self)
                 print(f"{agent.name} dit : {msg}")
-        self.resolve_votes()
-
-    def resolve_votes(self):
-        print("\nRésolution des votes (exemple minimal)")
+        # 3. Chaque agent vivant vote publiquement
         votes = {}
         alive = [a for a in self.agents if a.status == "alive"]
-        alive_names = [a.name for a in alive]
+        alive_ids = [a.agent_id for a in alive]
         for agent in alive:
             vote = agent.vote(self)
-            if vote and vote in alive_names:
+            # On attend un ID d'agent
+            if vote and vote in alive_ids:
                 votes.setdefault(vote, 0)
                 votes[vote] += 1
-                print(f"{agent.name} vote contre {vote}")
+                cible = next((a for a in alive if a.agent_id == vote), None)
+                print(f"{agent.name} vote contre {cible.name if cible else vote}")
             else:
                 print(f"{agent.name} n'a pas voté pour un joueur vivant (vote ignoré)")
+        # 4. Élimination par majorité
         if votes:
-            eliminated = max(votes, key=votes.get)
-            if eliminated in alive_names:
-                for agent in alive:
-                    if agent.name == eliminated:
-                        agent.status = "dead"
-                        print(f"{eliminated} est éliminé !")
-                        break
+            from collections import Counter
+            count = Counter(votes)
+            cible_majoritaire, nb = count.most_common(1)[0]
+            # Vérifie s'il y a égalité
+            if list(count.values()).count(nb) == 1:
+                cible_agent = next((a for a in alive if a.agent_id == cible_majoritaire), None)
+                if cible_agent:
+                    cible_agent.status = "dead"
+                    print(f"{cible_agent.name} est éliminé par le village !")
             else:
-                print("Aucun joueur vivant n'a été désigné pour l'élimination.")
+                print("Égalité au vote, personne n'est éliminé.")
         else:
             print("Aucun vote exprimé.")
 

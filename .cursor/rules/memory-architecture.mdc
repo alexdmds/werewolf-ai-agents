@@ -3,7 +3,7 @@ alwaysApply: true
 ---
 # 🧠 Architecture de la mémoire et du contexte passé aux agents
 
-Ce document décrit la manière dont est construite la **mémoire contextuelle** transmise à chaque agent (joueur IA) à chaque appel LLM, que ce soit pour parler (`talk()`), voter (`vote()`), ou agir la nuit (`night_action()`).
+Ce document décrit la manière dont est construite la **mémoire contextuelle** transmise à chaque agent (joueur IA) à chaque appel LLM, que ce soit pour parler (`talk()`), voter (`vote()`), ou agir la nuit.
 
 L'objectif est d'assurer :
 - la **cohérence** des décisions d'un agent avec son historique personnel,
@@ -113,8 +113,6 @@ game_state.get_last_discussion(n)
 Varie selon la phase :
 	•	talk : “Exprime ton avis sur les autres joueurs.”
 	•	vote : “Vote pour un joueur en répondant uniquement : NOM – RAISON”
-	•	night_action (loup) : “Choisis une victime à éliminer”
-	•	night_action (voyante) : “Choisis un joueur à espionner”
 
 Elle est toujours explicite, directive, et concise pour guider le LLM.
 

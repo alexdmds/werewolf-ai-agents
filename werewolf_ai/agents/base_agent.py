@@ -30,9 +30,5 @@ class BaseAgent:
         prompt = self.build_prompt("vote", game_state)
         return self.llm(prompt)
 
-    def night_action(self, game_state) -> Optional[str]:
-        prompt = self.build_prompt("night_action", game_state)
-        return self.llm(prompt)
-
     def receive_info(self, info: str):
         pass

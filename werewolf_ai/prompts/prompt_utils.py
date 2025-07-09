@@ -63,16 +63,13 @@ def build_prompt(agent, action, game_state):
 
     # 6. Instruction/action à exécuter
     if action == "talk":
-        prompt += "Exprime-me toi dans ton rôle auprès des autres joueurs. Ta réponse doit être naturelle, cohérente avec la discussion et dans l'intérêt de ton rôle."
+        prompt += "Exprime ton avis sur les autres joueurs."
     elif action == "vote":
-        prompt += "Vote pour un joueur à éliminer, dans ton intérêt pour gagner la partie, en répondant uniquement : ID - NOM - RAISON"
-    elif action == "night_action":
-        if agent.role == "Werewolf":
-            prompt += "Choisis une victime à éliminer."
-        elif agent.role == "Seer":
-            prompt += "Choisis un joueur à espionner."
-        else:
-            prompt += "Agis selon ton rôle."
+        prompt += "Vote pour un joueur en répondant uniquement : ID - NOM - RAISON"
+    elif action == "spy":
+        prompt += "Choisis un joueur à espionner."
+    elif action == "vote_to_kill":
+        prompt += "Choisis une victime à éliminer."
     else:
         prompt += "Agis selon l'action demandée."
     return prompt

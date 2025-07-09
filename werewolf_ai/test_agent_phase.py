@@ -13,7 +13,7 @@ config.USE_MOCK_LLM = False
 
 # Paramètres de test
 AGENT_NAME = "Marc"  # Nom de l'agent à tester (ex : "Paul", "Marie", "Julie", ...)
-PHASE = "talk"  # "talk", "vote", "night_action"
+PHASE = "talk"  # "talk", "vote"
 
 # Création d'un état de jeu complexe
 loups = [
@@ -60,20 +60,6 @@ game.log = [
     "Sophie : Luc était trop silencieux hier."
 ]
 
-def parse_action_response(response, agents):
-    # Cherche d'abord un ID
-    match = re.search(r"([0-9a-fA-F]{6})", response)
-    if match:
-        agent_id = match.group(1)
-        for ag in agents:
-            if ag.agent_id == agent_id and ag.status == "alive":
-                return ag
-    # Sinon, cherche un nom de joueur vivant dans la réponse
-    for ag in agents:
-        if ag.status == "alive" and ag.name.lower() in response.lower():
-            return ag
-    return None
-
 # Sélection de l'agent à tester
 agent = next((a for a in agents if a.name == AGENT_NAME), None)
 if not agent:
@@ -99,22 +85,11 @@ print(prompt)
 response = getattr(agent, PHASE)(game)
 print(f"\n--- RÉPONSE LLM DE {agent.name} ---\n")
 print(response)
-
-# Si l'action est vote ou night_action, on parse la cible
-if PHASE in ("vote", "night_action"):
+if PHASE == "vote":
     if response is not None:
-        cible = parse_action_response(response, agents)
+        cible = next((a for a in agents if a.agent_id == response or a.name.lower() in str(response).lower()), None)
         if cible:
-            print(f"[PARSE] {agent.name} cible : {cible.agent_id} - {cible.name}")
-            if PHASE == "vote":
-                print(f"[ACTION] {agent.name} voterait pour {cible.name}")
-            elif PHASE == "night_action":
-                if agent.role == "Seer":
-                    print(f"[ACTION] Rôle révélé à la voyante : {cible.role}")
-                    agent.memory.add(f"Vision : {cible.name} ({cible.agent_id}) est {cible.role}")
-                elif agent.role == "Werewolf":
-                    cible.status = "dead"
-                    print(f"[ACTION] {cible.name} est maintenant éliminé (statut : {cible.status})")
+            print(f"[ACTION] {agent.name} voterait pour {cible.name}")
         else:
             print(f"[PARSE] {agent.name} : impossible d'extraire la cible.")
     else:
