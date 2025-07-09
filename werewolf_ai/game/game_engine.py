@@ -6,13 +6,17 @@ class WerewolfGame:
         self.agents = agents
         self.turn = 0
         self.log = []
+        self.game_over = False
 
     def play(self):
         print("=== Début de la partie ===")
         print("Joueurs en jeu :", ", ".join([a.name + f" ({a.role})" for a in self.agents]))
-        self.run_night_phase()
-        self.run_day_phase()
-        self.check_win_condition()
+        while not self.is_game_over():
+            self.turn += 1
+            print(f"\n===== Tour {self.turn} =====")
+            self.run_night_phase()
+            self.run_day_phase()
+            self.check_win_condition()
         print("=== Fin de la partie ===")
 
     def run_night_phase(self):
@@ -56,3 +60,15 @@ class WerewolfGame:
         # Affiche le statut des joueurs
         for agent in self.agents:
             print(f"{agent.name} : {agent.status}")
+        # Condition de victoire minimale :
+        wolves = [a for a in self.agents if a.role == "Werewolf" and a.status == "alive"]
+        villagers = [a for a in self.agents if a.role != "Werewolf" and a.status == "alive"]
+        if not wolves:
+            print("\nVictoire des villageois !")
+            self.game_over = True
+        elif len(wolves) >= len(villagers):
+            print("\nVictoire des loups-garous !")
+            self.game_over = True
+
+    def is_game_over(self):
+        return getattr(self, "game_over", False)
