@@ -1,9 +1,38 @@
 from .system_templates import SYSTEM_PROMPTS
+from collections import Counter
 
 def build_prompt(agent, action, game_state):
+    # Bloc de rappel des règles (toujours présent)
+    regles = (
+        "🧾 Règles du jeu – Loup-Garou (rappel)\n"
+        "\nLe jeu alterne entre nuit et jour.\n"
+        "\t•\t🌙 La nuit, certains rôles agissent en secret :\n"
+        "\t•\tLes loups-garous votent (séparément) pour éliminer un joueur.\n"
+        "\t•\tLa voyante peut inspecter le rôle d’un joueur.\n"
+        "\t•\t🌞 Le jour, tous les joueurs discutent puis votent pour éliminer un suspect.\n"
+        "\t•\tLe jeu continue jusqu’à ce que :\n"
+        "\t•\tTous les loups soient morts → les villageois gagnent\n"
+        "\t•\tLes loups soient en nombre égal ou supérieur aux autres → les loups gagnent\n"
+        "\n🕵️ Ton rôle est secret. Tu dois défendre ton camp sans te faire démasquer.\n"
+        "\n⸻\n"
+    )
+    # Calcul de la composition actuelle (vivants)
+    roles = [a.role for a in game_state.agents if a.status == "alive"]
+    counts = Counter(roles)
+    role_labels = {
+        "Werewolf": "loup-garou",
+        "Villager": "villageois",
+        "Seer": "voyante"
+    }
+    compo = []
+    for role, label in role_labels.items():
+        n = counts.get(role, 0)
+        if n > 0:
+            compo.append(f"{n} {label}{'s' if n > 1 and label != 'voyante' else ''}")
+    compo_str = "Composition actuelle : " + ", ".join(compo) + ".\n"
     # 1. Prompt système
     base = SYSTEM_PROMPTS.get(agent.role, "")
-    prompt = base + "\n"
+    prompt = regles + compo_str + base + "\n"
 
     # 2. Rappel des règles (optionnel)
     if game_state.turn <= 2:
@@ -36,7 +65,7 @@ def build_prompt(agent, action, game_state):
     if action == "talk":
         prompt += "Exprime-me toi dans ton rôle auprès des autres joueurs. Ta réponse doit être naturelle, cohérente avec la discussion et dans l'intérêt de ton rôle."
     elif action == "vote":
-        prompt += "Vote pour un joueur en répondant uniquement : ID - NOM - RAISON"
+        prompt += "Vote pour un joueur à éliminer, dans ton intérêt pour gagner la partie, en répondant uniquement : ID - NOM - RAISON"
     elif action == "night_action":
         if agent.role == "Werewolf":
             prompt += "Choisis une victime à éliminer."

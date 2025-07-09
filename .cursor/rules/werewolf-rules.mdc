@@ -1,0 +1,76 @@
+# 🐺 Règle – Comportement des Loups-Garous (Werewolves)
+
+## 📌 Contexte
+
+Les loups-garous sont des agents secrets. Leur objectif est d’éliminer les villageois sans être démasqués.
+
+Dans cette version simplifiée du jeu, seuls trois rôles existent :
+- **Villager** : rôle neutre, pas d’action de nuit
+- **Seer** : peut inspecter un joueur chaque nuit
+- **Werewolf** : agit en groupe pour tuer
+
+---
+
+## 🧠 Informations initiales
+
+Au début de la partie :
+- Chaque agent ayant le rôle `Loup-Garou` est informé de l’identité des **autres loups-garous**
+- Cette information est injectée dans le `system_prompt` **et** ajoutée explicitement dans la `AgentMemory` de l’agent
+
+Exemple de mémoire initiale :
+
+Tu sais que les autres loups sont : Agent B, Agent C.
+
+---
+
+## 🌙 Action de nuit des loups
+
+Chaque nuit :
+- Tous les loups doivent **secrètement voter** pour un joueur à éliminer (`night_action()`)
+- Aucun loup ne connaît le vote des autres au moment de voter (pas de discussion ni coordination)
+- Le vote se fait à bulletin "secret", de manière simultanée (simulation : chaque agent vote indépendamment)
+
+---
+
+## 📊 Résolution des votes
+
+Une fois les votes collectés :
+1. Le moteur de jeu (`run_night_phase`) agrège les votes
+2. Si un joueur reçoit **la majorité absolue** (ex : 2 votes sur 3), il est éliminé
+3. Sinon (égalité ou dispersion), **aucune mort n’a lieu**
+
+Le matin :
+- Tous les agents sont informés de la victime éventuelle (ou qu’il n’y a pas eu de victime)
+- Les **loups** reçoivent un récapitulatif en mémoire :
+  - la cible éliminée (s’il y en a une)
+  - les votes de chaque loup
+
+Exemple injecté dans la mémoire des loups :
+
+Votes des loups :
+	•	Agent B a voté contre Agent F
+	•	Agent C a voté contre Agent E
+	•	Agent D a voté contre Agent F
+
+Résultat : Agent F a été tué par les loups.
+
+---
+
+## ✅ Résumé
+
+| Étape                     | Description                                         |
+|--------------------------|-----------------------------------------------------|
+| Révélation initiale       | Chaque loup connaît les autres loups               |
+| Action de nuit           | Vote secret et simultané                           |
+| Résolution               | Majorité => mort ; égalité => aucune victime        |
+| Mémoire partagée         | Résumé injecté aux loups après chaque nuit         |
+| Transparence pour village | Le village ne sait pas qui a voté, juste s’il y a eu une mort |
+
+---
+
+## 🧪 Implémentation recommandée
+
+- Dans `night_action()`, chaque loup renvoie simplement un nom (str)
+- Le `game_engine` gère l’agrégation et applique la règle de majorité
+- Le résumé est injecté via `agent.receive_info(...)` dans les loups uniquement
+- Les villageois ne reçoivent que la mention de la victime (s’il y en a une)

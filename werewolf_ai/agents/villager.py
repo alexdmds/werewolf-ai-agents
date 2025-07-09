@@ -9,3 +9,6 @@ class Villager(BaseAgent):
 
     def vote(self, game_state):
         return super().vote(game_state)
+
+    def night_action(self, game_state):
+        return None

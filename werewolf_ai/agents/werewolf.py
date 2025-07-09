@@ -2,7 +2,7 @@ from .base_agent import BaseAgent
 from typing import List
 
 class Werewolf(BaseAgent):
-    def __init__(self, name: str, allies: List[str] = None, agent_id=None):
+    def __init__(self, name: str, allies: list = None, agent_id=None):
         super().__init__(name, "Werewolf", agent_id=agent_id)
         self.allies = allies or []
 
