@@ -7,22 +7,25 @@ class WerewolfGame:
         self.log = []
         self.game_over = False
 
-    def play(self):
+    def play(self, max_turns=100):
         print("=== Début de la partie ===")
         print("Joueurs en jeu :", ", ".join([a.name + f" ({a.role})" for a in self.agents]))
-        while not self.is_game_over():
+        while not self.is_game_over() and self.turn < max_turns:
             self.turn += 1
             print(f"\n===== Tour {self.turn} =====")
             self.run_night_phase()
             self.run_day_phase()
             self.check_win_condition()
-        print("=== Fin de la partie ===")
+        if self.turn >= max_turns:
+            print(f"\n=== Fin de la partie : nombre maximal de tours ({max_turns}) atteint ===")
+        else:
+            print("=== Fin de la partie ===")
 
     def run_night_phase(self):
         print("\n--- Phase de nuit ---")
         for agent in self.agents:
             if hasattr(agent, "night_action") and agent.status == "alive":
-                action = agent.night_action([a.name for a in self.agents if a.status == "alive"])
+                action = agent.night_action(self)
                 if action:
                     print(f"{agent.name} ({agent.role}) agit la nuit : {action}")
 
@@ -30,7 +33,7 @@ class WerewolfGame:
         print("\n--- Phase de jour ---")
         for agent in self.agents:
             if hasattr(agent, "talk") and agent.status == "alive":
-                msg = agent.talk({})
+                msg = agent.talk(self)
                 print(f"{agent.name} dit : {msg}")
         self.resolve_votes()
 
@@ -38,19 +41,25 @@ class WerewolfGame:
         print("\nRésolution des votes (exemple minimal)")
         votes = {}
         alive = [a for a in self.agents if a.status == "alive"]
+        alive_names = [a.name for a in alive]
         for agent in alive:
-            vote = agent.vote([a.name for a in alive if a.name != agent.name])
-            if vote:
+            vote = agent.vote(self)
+            if vote and vote in alive_names:
                 votes.setdefault(vote, 0)
                 votes[vote] += 1
                 print(f"{agent.name} vote contre {vote}")
+            else:
+                print(f"{agent.name} n'a pas voté pour un joueur vivant (vote ignoré)")
         if votes:
             eliminated = max(votes, key=votes.get)
-            for agent in alive:
-                if agent.name == eliminated:
-                    agent.status = "dead"
-                    print(f"{eliminated} est éliminé !")
-                    break
+            if eliminated in alive_names:
+                for agent in alive:
+                    if agent.name == eliminated:
+                        agent.status = "dead"
+                        print(f"{eliminated} est éliminé !")
+                        break
+            else:
+                print("Aucun joueur vivant n'a été désigné pour l'élimination.")
         else:
             print("Aucun vote exprimé.")
 

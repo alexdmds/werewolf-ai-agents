@@ -1,12 +1,11 @@
 from .base_agent import BaseAgent
 
 class Villager(BaseAgent):
-    def __init__(self, name: str):
-        super().__init__(name, "Villager")
+    def __init__(self, name: str, agent_id=None):
+        super().__init__(name, "Villager", agent_id=agent_id)
 
-    def talk(self, context):
-        return "Je suis un simple villageois."
+    def talk(self, game_state):
+        return super().talk(game_state)
 
-    def vote(self, players_alive):
-        # Vote aléatoire pour l'exemple minimal
-        return players_alive[0] if players_alive else None
+    def vote(self, game_state):
+        return super().vote(game_state)

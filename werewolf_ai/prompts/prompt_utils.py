@@ -11,7 +11,7 @@ def build_prompt(agent, action, game_state):
 
     # 3. État du jeu
     prompt += f"Tour actuel : {game_state.turn}\n"
-    prompt += f"Joueurs encore en vie : {', '.join(game_state.get_alive_names())}\n"
+    prompt += f"Joueurs encore en vie : {', '.join([f'{a.agent_id} - {a.name}' for a in game_state.agents if a.status == 'alive'])}\n"
     morts = game_state.get_deaths_summary()
     if morts:
         prompt += "Morts précédents :\n\t• " + "\n\t• ".join(morts) + "\n"
@@ -34,9 +34,9 @@ def build_prompt(agent, action, game_state):
 
     # 6. Instruction/action à exécuter
     if action == "talk":
-        prompt += "Exprime ton avis sur les autres joueurs."
+        prompt += "Exprime-me toi dans ton rôle auprès des autres joueurs. Ta réponse doit être naturelle, cohérente avec la discussion et dans l'intérêt de ton rôle."
     elif action == "vote":
-        prompt += "Vote pour un joueur en répondant uniquement : NOM – RAISON"
+        prompt += "Vote pour un joueur en répondant uniquement : ID - NOM - RAISON"
     elif action == "night_action":
         if agent.role == "Werewolf":
             prompt += "Choisis une victime à éliminer."
