@@ -12,21 +12,21 @@ import re
 config.USE_MOCK_LLM = False
 
 # Paramètres de test
-AGENT_NAME = "Marc"  # Nom de l'agent à tester (ex : "Paul", "Marie", "Julie", ...)
-PHASE = "talk"  # "talk", "vote"
+AGENT_NAME = "Marie"  # Nom de l'agent à tester (ex : "Paul", "Marie", "Julie", ...)
+PHASE = "spy"  # "talk", "vote", "spy", "vote_to_kill"
 
 # Création d'un état de jeu complexe
+seer = Seer("Marie")
 loups = [
     Werewolf("Paul"),
     Werewolf("Marc"),
     Werewolf("Julie")
 ]
 villagers = [
-    Villager("Marie"),
     Villager("Sophie"),
     Villager("Luc")
 ]
-agents = loups + villagers
+agents = [seer] + loups + villagers
 game = WerewolfGame(agents)
 game.turn = 3
 
@@ -79,18 +79,40 @@ for msg in game.log:
     print("   ", msg)
 
 # Teste uniquement l'action demandée
-prompt = agent.build_prompt(PHASE, game)
-print(f"\n--- PROMPT POUR {agent.name} ({agent.agent_id}) ---\n")
-print(prompt)
-response = getattr(agent, PHASE)(game)
-print(f"\n--- RÉPONSE LLM DE {agent.name} ---\n")
-print(response)
-if PHASE == "vote":
-    if response is not None:
-        cible = next((a for a in agents if a.agent_id == response or a.name.lower() in str(response).lower()), None)
-        if cible:
-            print(f"[ACTION] {agent.name} voterait pour {cible.name}")
-        else:
-            print(f"[PARSE] {agent.name} : impossible d'extraire la cible.")
+prompt = None
+if PHASE == "spy" and agent.role == "Seer":
+    prompt = agent.build_prompt("spy", game)
+    print(f"\n--- PROMPT POUR {agent.name} ({agent.agent_id}) ---\n")
+    print(prompt)
+    cible_id = agent.spy(game)
+    if cible_id:
+        cible = next((a for a in agents if a.agent_id == cible_id), None)
+        print(f"[ACTION] Voyante espionne : {cible.name} ({cible.agent_id}) rôle : {cible.role}")
     else:
-        print(f"[INFO] {agent.name} n'a pas d'action à parser pour cette phase.") 
+        print("[ACTION] Voyante : aucune cible trouvée.")
+elif PHASE == "vote_to_kill" and agent.role == "Werewolf":
+    prompt = agent.build_prompt("vote_to_kill", game)
+    print(f"\n--- PROMPT POUR {agent.name} ({agent.agent_id}) ---\n")
+    print(prompt)
+    cible_id = agent.vote_to_kill(game)
+    if cible_id:
+        cible = next((a for a in agents if a.agent_id == cible_id), None)
+        print(f"[ACTION] Loup voterait pour éliminer : {cible.name} ({cible.agent_id})")
+    else:
+        print("[ACTION] Loup : aucune cible trouvée.")
+else:
+    prompt = agent.build_prompt(PHASE, game)
+    print(f"\n--- PROMPT POUR {agent.name} ({agent.agent_id}) ---\n")
+    print(prompt)
+    response = getattr(agent, PHASE)(game)
+    print(f"\n--- RÉPONSE LLM DE {agent.name} ---\n")
+    print(response)
+    if PHASE == "vote":
+        if response is not None:
+            cible = next((a for a in agents if a.agent_id == response or a.name.lower() in str(response).lower()), None)
+            if cible:
+                print(f"[ACTION] {agent.name} voterait pour {cible.name}")
+            else:
+                print(f"[PARSE] {agent.name} : impossible d'extraire la cible.")
+        else:
+            print(f"[INFO] {agent.name} n'a pas d'action à parser pour cette phase.") 

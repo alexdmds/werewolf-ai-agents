@@ -67,9 +67,9 @@ def build_prompt(agent, action, game_state):
     elif action == "vote":
         prompt += "Vote pour un joueur en répondant uniquement : ID - NOM - RAISON"
     elif action == "spy":
-        prompt += "Choisis un joueur à espionner."
+        prompt += "Choisis un joueur dont tu souhaites connaitre le rôle (que tu ne connais pas déjà)pour aider les villageois à démasquer les loups."
     elif action == "vote_to_kill":
-        prompt += "Choisis une victime à éliminer."
+        prompt += "Choisis une victime à éliminer dans l'intérêt des loups."
     else:
         prompt += "Agis selon l'action demandée."
     return prompt
