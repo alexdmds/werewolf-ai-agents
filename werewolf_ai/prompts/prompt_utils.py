@@ -63,9 +63,9 @@ def build_prompt(agent, action, game_state):
 
     # 6. Instruction/action à exécuter
     if action == "talk":
-        prompt += "Exprime ton avis sur les autres joueurs."
+        prompt += "Exprime-toi publiquement pour le village. Répond aux derniers messages, de façon naturelle comme dans une discussion. Attention ce que tu dis est publique. Parle dans le but de défendre ton rôle et de convaincre les autres joueurs. Sois très concis."
     elif action == "vote":
-        prompt += "Vote pour un joueur en répondant uniquement : ID - NOM - RAISON"
+        prompt += "Vote pour éliminer un joueur encore vivant du village. Attention ce vote est publique. Agis dans l'intérêt de ton camp et dans ton intérêt. Réponds uniquement par celui que tu veux élimliner : ID - NOM - RAISON"
     elif action == "spy":
         prompt += "Choisis un joueur dont tu souhaites connaitre le rôle (que tu ne connais pas déjà)pour aider les villageois à démasquer les loups."
     elif action == "vote_to_kill":

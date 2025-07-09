@@ -8,7 +8,16 @@ class Seer(BaseAgent):
         return super().talk(game_state)
 
     def vote(self, game_state):
-        return super().vote(game_state)
+        prompt = self.build_prompt("vote", game_state)
+        response = self.llm(prompt)
+        import re
+        match = re.search(r"([0-9a-fA-F]{6})", response)
+        if match:
+            return match.group(1)
+        for ag in game_state.agents:
+            if ag.status == "alive" and ag.name.lower() in response.lower():
+                return ag.agent_id
+        return None
 
     def spy(self, game_state):
         prompt = self.build_prompt("spy", game_state)

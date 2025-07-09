@@ -13,7 +13,7 @@ config.USE_MOCK_LLM = False
 
 # Paramètres de test
 AGENT_NAME = "Marie"  # Nom de l'agent à tester (ex : "Paul", "Marie", "Julie", ...)
-PHASE = "spy"  # "talk", "vote", "spy", "vote_to_kill"
+PHASE = "vote"  # "talk", "vote", "spy", "vote_to_kill"
 
 # Création d'un état de jeu complexe
 seer = Seer("Marie")
