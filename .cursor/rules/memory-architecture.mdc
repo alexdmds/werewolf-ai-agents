@@ -1,0 +1,160 @@
+---
+alwaysApply: true
+---
+# 🧠 Architecture de la mémoire et du contexte passé aux agents
+
+Ce document décrit la manière dont est construite la **mémoire contextuelle** transmise à chaque agent (joueur IA) à chaque appel LLM, que ce soit pour parler (`talk()`), voter (`vote()`), ou agir la nuit (`night_action()`).
+
+L'objectif est d'assurer :
+- la **cohérence** des décisions d'un agent avec son historique personnel,
+- la **compréhension de l'état du jeu** (joueurs en vie, morts, accusations…),
+- un **prompt compact, lisible et contrôlé**, évitant de surcharger la fenêtre de contexte.
+
+---
+
+## 🧩 Structure du prompt complet envoyé à un agent
+
+Le prompt construit à chaque appel est composé de 6 blocs, injectés dynamiquement :
+
+1. **System Prompt** (prompt système / rôle)
+2. **Rappel des règles** (optionnel)
+3. **État actuel du jeu**
+4. **Mémoire personnelle de l'agent**
+5. **Historique public récent**
+6. **Instruction/action à exécuter**
+
+### Exemple d’assemblage :
+
+Tu es un agent IA jouant au jeu du Loup-Garou. Ton rôle est : Loup-Garou.
+Tu fais semblant d’être un villageois. Tu veux éliminer les autres sans être découvert.
+
+Tour actuel : 3
+Joueurs encore en vie : A, B, C, D
+Morts précédents :
+	•	F (vote, villageois)
+	•	E (nuit, inconnu)
+
+Mémoire :
+	•	T1 : Agent C m’a accusé
+	•	T2 : J’ai voté contre Agent F
+	•	T2 : Agent B a affirmé être voyante
+
+Discussion précédente :
+	•	Agent A : “Je pense que C est suspect”
+	•	Agent C : “B semble trop calme”
+	•	Agent D : “Je vais voter contre B”
+
+Tu dois maintenant voter. Réponds uniquement par : NOM – RAISON
+
+---
+
+## 🏗️ Détail des blocs
+
+### 1. System Prompt
+Défini dans `prompts/system_templates.py`. Il contient :
+- le rôle du joueur
+- son comportement attendu (ex : bluff, honnêteté)
+- des informations spéciales (ex : liste des autres loups)
+
+Injecté dans la partie `system` du prompt pour les API style OpenAI.
+
+---
+
+### 2. Rappel des règles (optionnel)
+Ajouté si `turn <= 2` ou en mode debug :
+- rappels de la mécanique (discussion > vote > nuit)
+- but du rôle
+
+Permet d’éviter les déviations de comportement au démarrage.
+
+---
+
+### 3. État actuel du jeu
+Construit dynamiquement depuis `game_state` :
+- numéro du tour
+- liste des joueurs vivants
+- liste des morts et cause (vote ou nuit), rôle connu si applicable
+
+Méthodes suggérées :
+```python
+game_state.get_alive_names()
+game_state.get_deaths_summary()
+
+
+⸻
+
+4. Mémoire personnelle de l’agent
+
+Stockée dans AgentMemory (une instance par agent) :
+	•	ajoutée via .add(message)
+	•	lue via .get_recent(n) ou .get_summary()
+	•	contient ce que l’agent a perçu (accusations, votes, visions…)
+
+N’est pas partagée entre agents (subjective).
+
+⸻
+
+5. Historique public
+
+Extraits récents des discussions visibles par tous :
+	•	récupérés depuis game_state.log
+	•	forme : Agent X : "..."
+	•	on injecte typiquement les 3–5 derniers échanges
+
+Méthode suggérée :
+
+game_state.get_last_discussion(n)
+
+
+⸻
+
+6. Instruction/action demandée
+
+Varie selon la phase :
+	•	talk : “Exprime ton avis sur les autres joueurs.”
+	•	vote : “Vote pour un joueur en répondant uniquement : NOM – RAISON”
+	•	night_action (loup) : “Choisis une victime à éliminer”
+	•	night_action (voyante) : “Choisis un joueur à espionner”
+
+Elle est toujours explicite, directive, et concise pour guider le LLM.
+
+⸻
+
+🧠 Fonction de génération du prompt
+
+Chaque agent appelle une méthode build_prompt(action: str, game_state: GameState) qui retourne un prompt à envoyer au LLM.
+
+Responsable de :
+	•	combiner tous les blocs ci-dessus
+	•	formater le prompt lisiblement
+	•	adapter à l’action courante
+
+⸻
+
+🔁 Exemple dans le code (dans un agent)
+
+def vote(self, game_state: GameState) -> str:
+    prompt = self.build_prompt(action="vote", game_state=game_state)
+    raw_response = call_llm(prompt, system_prompt=self.system_prompt)
+    return parse_vote_response(raw_response, valid_names=game_state.get_alive_names())
+
+
+⸻
+
+🔐 Règle de sécurité
+
+Les agents ne conservent aucune mémoire native entre les appels :
+	•	toute “mémoire” est stockée manuellement dans leur AgentMemory
+	•	à chaque appel, on injecte les résumés ou événements récents nécessaires
+
+⸻
+
+✅ Résumé
+
+Élément	Géré par
+Prompt système	system_templates.py
+Mémoire subjective de l’agent	AgentMemory
+État global	GameState
+Historique de discussion	GameState.log_discussion()
+Assemblage final	build_prompt()
+Envoi LLM + parsing	llm_interface.py

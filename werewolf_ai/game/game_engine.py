@@ -1,5 +1,4 @@
 from typing import List
-from .actions import AgentAction
 
 class WerewolfGame:
     def __init__(self, agents: List):
@@ -72,3 +71,18 @@ class WerewolfGame:
 
     def is_game_over(self):
         return getattr(self, "game_over", False)
+
+    def get_alive_names(self):
+        return [a.name for a in self.agents if a.status == "alive"]
+
+    def get_deaths_summary(self):
+        morts = [a for a in self.agents if a.status == "dead"]
+        res = []
+        for a in morts:
+            # On suppose que la cause et le rôle ne sont pas encore stockés, on met un placeholder
+            res.append(f"{a.name} (mort, rôle: {a.role})")
+        return res
+
+    def get_last_discussion(self, n=3):
+        # On suppose que self.log contient les messages publics (à adapter si besoin)
+        return self.log[-n:] if len(self.log) >= n else self.log

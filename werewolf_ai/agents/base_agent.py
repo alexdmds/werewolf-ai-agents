@@ -10,14 +10,21 @@ class BaseAgent:
         self.status = "alive"
         self.llm = llm if llm is not None else get_llm()
 
-    def talk(self, context: dict) -> str:
-        raise NotImplementedError
+    def build_prompt(self, action, game_state):
+        from prompts.prompt_utils import build_prompt
+        return build_prompt(self, action, game_state)
 
-    def vote(self, players_alive: List[str]) -> str:
-        raise NotImplementedError
+    def talk(self, game_state) -> str:
+        prompt = self.build_prompt("talk", game_state)
+        return self.llm(prompt)
 
-    def night_action(self, players_alive: List[str]) -> Optional[str]:
-        return None
+    def vote(self, game_state) -> str:
+        prompt = self.build_prompt("vote", game_state)
+        return self.llm(prompt)
+
+    def night_action(self, game_state) -> Optional[str]:
+        prompt = self.build_prompt("night_action", game_state)
+        return self.llm(prompt)
 
     def receive_info(self, info: str):
         pass
