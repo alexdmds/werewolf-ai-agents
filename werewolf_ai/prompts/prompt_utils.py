@@ -41,33 +41,49 @@ def build_prompt(agent, action, game_state):
     # 3. État du jeu
     prompt += f"Tour actuel : {game_state.turn}\n"
     prompt += f"Joueurs encore en vie : {', '.join([f'{a.agent_id} - {a.name}' for a in game_state.agents if a.status == 'alive'])}\n"
-    morts = game_state.get_deaths_summary()
-    if morts:
-        prompt += "Morts précédents :\n\t• " + "\n\t• ".join(morts) + "\n"
+
+    # 4. Morts précédents (on prend les messages du channel 'public' qui annoncent les morts)
+    morts_logs = [msg for msg in game_state.logs.get("public", []) if "a été tué" in msg or "a été éliminé" in msg]
+    if morts_logs:
+        prompt += "Morts précédents :\n\t• " + "\n\t• ".join(morts_logs[-3:]) + "\n"
     else:
         prompt += "Aucun mort pour l'instant.\n"
 
-    # 4. Mémoire personnelle de l'agent
+    # 5. Mémoire personnelle de l'agent
     mem = agent.memory.get_recent(3)
     if mem:
         prompt += "Mémoire :\n\t• " + "\n\t• ".join(mem) + "\n"
     else:
         prompt += "Mémoire : (aucun événement marquant)\n"
 
-    # 5. Historique public récent
-    histo = game_state.get_last_discussion(3)
-    if histo:
-        prompt += "Discussion précédente :\n\t• " + "\n\t• ".join(histo) + "\n"
+    # 6. Historique des discussions accessibles (channels)
+    # Tout le monde a accès à 'public'
+    # Les loups à 'wolves', la voyante à 'seer'
+    discussions = []
+    discussions += game_state.logs.get("public", [])[-3:]
+    if agent.role == "Werewolf":
+        discussions += game_state.logs.get("wolves", [])[-3:]
+    if agent.role == "Seer":
+        discussions += game_state.logs.get("seer", [])[-3:]
+    # On retire les doublons tout en gardant l'ordre
+    seen = set()
+    discussions_unique = []
+    for msg in discussions:
+        if msg not in seen:
+            discussions_unique.append(msg)
+            seen.add(msg)
+    if discussions_unique:
+        prompt += "Discussions accessibles :\n\t• " + "\n\t• ".join(discussions_unique[-3:]) + "\n"
     else:
-        prompt += "Discussion précédente : (aucune discussion récente)\n"
+        prompt += "Discussions accessibles : (aucune discussion récente)\n"
 
-    # 6. Instruction/action à exécuter
+    # 7. Instruction/action à exécuter
     if action == "talk":
-        prompt += "Exprime-toi publiquement pour le village. Répond aux derniers messages, de façon naturelle comme dans une discussion. Attention ce que tu dis est publique. Parle dans le but de défendre ton rôle et de convaincre les autres joueurs. Sois très concis."
+        prompt += "Répond aux derniers messages, de façon naturelle comme dans une discussion. Attention ce que tu dis est publique. Parle dans le but de défendre ton rôle et de convaincre les autres joueurs. Sois très concis."
     elif action == "vote":
-        prompt += "Vote pour éliminer un joueur encore vivant du village. Attention ce vote est publique. Agis dans l'intérêt de ton camp et dans ton intérêt. Réponds uniquement par celui que tu veux élimliner : ID - NOM - RAISON"
+        prompt += "Vote pour éliminer un joueur encore vivant du village. Attention ce vote est publique. Agis dans l'intérêt de ton camp et dans ton intérêt. Réponds uniquement par celui que tu veux éliminer : ID - NOM - RAISON"
     elif action == "spy":
-        prompt += "Choisis un joueur dont tu souhaites connaitre le rôle (que tu ne connais pas déjà)pour aider les villageois à démasquer les loups."
+        prompt += "Choisis un joueur dont tu souhaites connaitre le rôle (que tu ne connais pas déjà) pour aider les villageois à démasquer les loups."
     elif action == "vote_to_kill":
         prompt += "Choisis une victime à éliminer dans l'intérêt des loups."
     else:

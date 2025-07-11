@@ -1,75 +1,82 @@
-# 🐺 Règle – Comportement des Loups-Garous (Werewolves)
+---
+alwaysApply: true
+description: >
+  Règle complète pour la simulation Loup-Garou : rôles, ordre d’action,
+  et diffusion d’information via les channels de WerewolfGame
+  (public, wolves, master, seer:<id>, etc.).
+---
 
-## 📌 Contexte
+# 🐺 Règle – Comportement des Loups-Garous (v2)
 
-Les loups-garous sont des agents secrets. Leur objectif est d’éliminer les villageois sans être démasqués.
-
-Dans cette version simplifiée du jeu, seuls trois rôles existent :
-- **Villager** : rôle neutre, pas d’action de nuit
-- **Seer** : peut inspecter un joueur chaque nuit
-- **Werewolf** : agit en groupe pour tuer
+## 1. Rôles en présence
+| Rôle       | Pouvoir de nuit                            | Objectif | Channel(s) abonné(s) |
+|------------|--------------------------------------------|----------|-----------------------|
+| **Villager** | aucun                                     | Survivre & éliminer tous les loups | `public`, `master` |
+| **Seer**      | inspecter **un** joueur *(role reveal)* | Aider le village | `public`, `master`, `seer:<id>` |
+| **Werewolf**  | voter deux fois pour tuer un joueur      | Tuer jusqu’à ≥ villageois | `public`, `master`, `wolves` |
 
 ---
 
-## 🧠 Informations initiales
-
-Au début de la partie :
-- Chaque agent ayant le rôle `Loup-Garou` est informé de l’identité des **autres loups-garous**
-- Cette information est injectée dans le `system_prompt` **et** ajoutée explicitement dans la `AgentMemory` de l’agent
-
-Exemple de mémoire initiale :
-
-Tu sais que les autres loups sont : Agent B, Agent C.
+## 2. Initialisation mémoire
+- Chaque loup connaît les autres loups :  
+  *ex.* « Tu sais que les autres loups sont : Paul, Julie ».  
+  Ajouté dans le `system_prompt` **et** dans sa mémoire (`MemoryManager.add`).
 
 ---
 
-## 🌙 Action de nuit des loups
+## 3. Ordre d’action de la **nuit**
 
-Chaque nuit :
-- Tous les loups doivent **secrètement voter** pour un joueur à éliminer.
-- Aucun loup ne connaît le vote des autres au moment de voter (pas de discussion ni coordination)
-- Le vote se fait à bulletin "secret", de manière simultanée (simulation : chaque agent vote indépendamment)
+| Étape | Acteur | Implémentation                             | Channels utilisés |
+|-------|--------|--------------------------------------------|-------------------|
+| 1️⃣ | Voyante | `seer.spy(game)` renvoie `target_id`        | `master`, `seer:<seer_id>` |
+| 2️⃣ | Loups – **tour 1** | chacun : `wolf.vote_to_kill(game)` | `master` |
+| 3️⃣ | Diffusion tour 1 | event : « Premier vote loups : … »   | `wolves`, `master` |
+| 4️⃣ | Loups – **tour 2** | à nouveau `wolf.vote_to_kill(game)` | `wolves`, `master` |
+| 5️⃣ | Diffusion tour 2 | event : « Deuxième vote loups : … »  | `wolves`, `master` |
+| 6️⃣ | Résolution | majorité absolue ⇒ victime                | `wolves` (+ `public`) + `master` |
 
----
-
-## 📊 Résolution des votes
-
-Une fois les votes collectés :
-1. Le moteur de jeu (`run_night_phase`) agrège les votes
-2. Si un joueur reçoit **la majorité absolue** (ex : 2 votes sur 3), il est éliminé
-3. Sinon (égalité ou dispersion), **aucune mort n’a lieu**
-
-Le matin :
-- Tous les agents sont informés de la victime éventuelle (ou qu’il n’y a pas eu de victime)
-- Les **loups** reçoivent un récapitulatif en mémoire :
-  - la cible éliminée (s’il y en a une)
-  - les votes de chaque loup
-
-Exemple injecté dans la mémoire des loups :
-
-Votes des loups :
-	•	Agent B a voté contre Agent F
-	•	Agent C a voté contre Agent E
-	•	Agent D a voté contre Agent F
-
-Résultat : Agent F a été tué par les loups.
+> **Rappel prompt loup (tour 2)**  
+> « Voici le récapitulatif du 1ᵉʳ tour : …  
+> Tu ne dois jamais voter pour un autre loup.  
+> Renvoie uniquement l’ID de la cible. »
 
 ---
 
-## ✅ Résumé
+## 4. Diffusion d’information (record_event)
 
-| Étape                     | Description                                         |
-|--------------------------|-----------------------------------------------------|
-| Révélation initiale       | Chaque loup connaît les autres loups               |
-| Action de nuit           | Vote secret et simultané                           |
-| Résolution               | Majorité => mort ; égalité => aucune victime        |
-| Mémoire partagée         | Résumé injecté aux loups après chaque nuit         |
-| Transparence pour village | Le village ne sait pas qui a voté, juste s’il y a eu une mort |
+| Exemple d’événement                                    | Channels passés à `record_event` |
+|--------------------------------------------------------|----------------------------------|
+| Voyante voit Luc → `Wolf`                              | `["master", "seer:<seer_id>"]`   |
+| Paul (loup) vote Luc (tour 1)                          | `["master"]`                     |
+| Récap premier vote                                     | `["wolves", "master"]`           |
+| Victime de la nuit (Luc)                               | `["wolves", "master", "public"]` |
+| Début de journée : « Luc a été tué »                   | `["public", "master"]`           |
+
+*`WerewolfGame.record_event` écrit dans `logs/<channel>.txt`
+et pousse le message dans la mémoire de tout agent abonné au channel.*
 
 ---
 
-## 🧪 Implémentation recommandée
+## 5. Résolution des votes loups
+1. Compter les cibles du **tour 2**.  
+2. **Majorité absolue** (> ⎣nb_loups / 2⎦) ⇒ victime tuée.  
+3. Sinon ⇒ « Pas de victime ».  
+4. Un event « Votes des loups : … / Résultat : … » est envoyé sur `wolves`, `master`.
 
-- Le `game_engine` gère l’agrégation et applique la règle de majorité
-- Le résumé est injecté via `agent.receive_info(...)` dans les loups uniquement
-- Les villageois ne reçoivent que la mention de la victime (s’il y en a une)
+---
+
+## 6. Résumé pour le prompt loup
+> « Tu es loup-garou. Tes alliés : Paul, Julie.  
+> Nuit : tu votes deux fois (tour 1, tour 2) pour tuer un **non-loup**.  
+> Après le tour 1, tu connais les votes des autres loups.  
+> Majorité absolue = victime, sinon personne.  
+> Ne vote **jamais** un loup. »
+
+---
+
+## 7. Condition de victoire
+- **Village** gagne si **plus aucun loup vivant**.  
+- **Loups** gagnent si **0 villageois vivants**.
+
+*(Les channels supplémentaires — `lovers`, `witch`, etc. — se rajouteront
+simplement en abonnant les agents concernés.)*
