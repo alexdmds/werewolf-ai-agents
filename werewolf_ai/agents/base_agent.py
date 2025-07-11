@@ -1,3 +1,9 @@
+# Pour activer le suivi LangSmith, installez : pip install langsmith
+import os
+os.environ["LANGSMITH_ENDPOINT"] = "https://api.smith.langchain.com"
+os.environ["LANGSMITH_API_KEY"] = os.getenv("LANGSMITH_API_KEY", "<VOTRE_CLE_API_LANGSMITH>")
+
+from langsmith import traceable
 from typing import List, Optional
 from memory.memory import AgentMemory
 from llm.llm_interface import get_llm
@@ -22,10 +28,12 @@ class BaseAgent:
         from prompts.prompt_utils import build_prompt
         return build_prompt(self, action, game_state)
 
+    @traceable
     def talk(self, game_state) -> str:
         prompt = self.build_prompt("talk", game_state)
         return self.llm(prompt)
 
+    @traceable
     def vote(self, game_state) -> str:
         prompt = self.build_prompt("vote", game_state)
         return self.llm(prompt)

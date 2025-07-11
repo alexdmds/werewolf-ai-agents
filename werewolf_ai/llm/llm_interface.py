@@ -1,6 +1,12 @@
 from config import use_mock_llm
 import os
-from openai import OpenAI
+from langchain_openai import ChatOpenAI
+
+# S'assurer que la clé OpenAI attendue par langchain_openai est bien présente
+def ensure_openai_key():
+    if "OPENAI_WEREWOLF_KEY" in os.environ:
+        os.environ["OPENAI_API_KEY"] = os.environ["OPENAI_WEREWOLF_KEY"]
+
 
 def call_llm(prompt: str) -> str:
     # Version factice pour la structure minimale
@@ -12,22 +18,16 @@ class MockLLM:
 
 class RealLLM:
     def __init__(self):
-        self.api_key = os.environ.get("OPENAI_WEREWOLF_KEY")
-        self.client = OpenAI(api_key=self.api_key)
+        ensure_openai_key()
         self.model = "gpt-4o-mini"
+        self.llm = ChatOpenAI(model=self.model)
 
     def __call__(self, prompt: str) -> str:
         try:
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "Tu es un agent du jeu Loup-Garou IA."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=256,
-                temperature=0.7
-            )
-            return completion.choices[0].message.content.strip()
+            # On fournit le prompt comme message utilisateur, le prompt système est déjà inclus dans build_prompt
+            response = self.llm.invoke(prompt)
+            # ChatOpenAI renvoie un Message, on extrait le contenu
+            return response.content.strip() if hasattr(response, 'content') else str(response)
         except Exception as e:
             return f"[ERREUR LLM] {e}"
 
