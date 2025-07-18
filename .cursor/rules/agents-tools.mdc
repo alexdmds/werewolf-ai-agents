@@ -1,0 +1,18 @@
+---
+alwaysApply: true
+---
+Approche : agent unique + outils gardés
+	•	Un seul AgentExecutor par joueur, partagé sur toute la partie.
+	•	Chaque rôle reçoit uniquement ses outils :
+	•	Voyante : spy
+	•	Loups : vote_to_kill
+	•	Tous : talk, vote
+	•	Chaque outil contient un guard interne :
+	1.	Vérifie phase (jour/nuit) et droits du rôle.
+	2.	Vérifie quota (ex. spy_used_turn).
+	3.	Sinon → lève ToolException (« interdit maintenant »).
+	•	Lorsqu’un guard refuse :
+	•	Le LLM reçoit l’erreur, arrête sa tentative.
+	•	Un log est écrit dans la mémoire (ConversationBufferMemory) : le modèle sait qu’il a déjà utilisé l’action.
+	•	max_iterations bas (1-2) pour couper tout spam d’outils après un refus.
+	•	Ainsi : mémoire persistante, latence minimale, règles respectées sans reconstruire l’executor à chaque action.

@@ -1,96 +1,80 @@
 from collections import Counter
 
 def build_prompt(agent, action, game_state):
-    # Bloc de rappel des règles (toujours présent)
-    regles = (
-        "🧾 Règles du jeu – Loup-Garou (rappel)\n"
-        "\nLe jeu alterne entre nuit et jour.\n"
-        "\t•\t🌙 La nuit, certains rôles agissent en secret :\n"
-        "\t•\tLes loups-garous votent (séparément) pour éliminer un joueur.\n"
-        "\t•\tLa voyante peut inspecter le rôle d’un joueur.\n"
-        "\t•\t🌞 Le jour, tous les joueurs discutent puis votent pour éliminer un suspect.\n"
-        "\t•\tLe jeu continue jusqu’à ce que :\n"
-        "\t•\tTous les loups soient morts → les villageois gagnent\n"
-        "\t•\tLes loups soient en nombre égal ou supérieur aux autres → les loups gagnent\n"
-        "\n🕵️ Ton rôle est secret. Tu dois défendre ton camp sans te faire démasquer.\n"
-        "\n⸻\n"
+    # 1. Introduction
+    intro = (
+        f"Tu es un joueur du jeu 'Le loup-garou'. Ton nom est {agent.name}. Tu vas agir et jouer dans ton intérêt pour gagner la partie."
     )
-    # Prompts système intégrés directement ici
-    system_prompts = {
-        "Werewolf": "Tu es un loup-garou. Ton but est qu'à la fin du jeu il ne reste que des loups. Tu es donc solidaire avec les autres loups.",
-        "Villager": "Tu es un villageois honnête. Tu veux survivre et démasquer les loups-garous.",
-        "Seer": "Tu es la voyante. Chaque nuit, tu peux découvrir le rôle d’un joueur."
+
+    # 2. Liste claire des joueurs
+    joueurs = []
+    for a in game_state.agents:
+        status = "vivant" if a.status == "alive" else "mort"
+        if a.status == "dead":
+            role = a.role
+        elif a.agent_id == agent.agent_id:
+            role = a.role
+        else:
+            role = "?"
+        moi = " <= TOI" if a.agent_id == agent.agent_id else ""
+        joueurs.append(f"- {a.name} (ID: {a.agent_id}) | {status} | rôle: {role}{moi}")
+    joueurs_str = "Liste des joueurs :\n" + "\n".join(joueurs)
+
+    # 3. Rappel concis des règles
+    regles = (
+        "Règles : Nuit : les loups votent pour tuer, la voyante inspecte. Jour : discussion puis vote public pour éliminer un suspect.\n"
+        "Victoire : village si plus de loup vivant, loups si plus de villageois.\n"
+    )
+
+    # 4. Structure de la partie actuelle
+    tour = f"Tour actuel : {game_state.turn}"
+    structure = f"{tour}"
+
+    # 5. Rôle et objectif
+    objectifs = {
+        "Werewolf": "Tu es loup-garou. Ton but : qu'à la fin il ne reste que des loups. Collabore avec tes alliés loups, élimine les autres.",
+        "Villager": "Tu es villageois. Ton but : survivre et éliminer tous les loups-garous.",
+        "Seer": "Tu es la voyante. Ton but : aider le village en découvrant le rôle d'un joueur chaque nuit."
     }
-    # Calcul de la composition actuelle (vivants)
-    roles = [a.role for a in game_state.agents if a.status == "alive"]
-    counts = Counter(roles)
-    role_labels = {
-        "Werewolf": "loup-garou",
-        "Villager": "villageois",
-        "Seer": "voyante"
-    }
-    compo = []
-    for role, label in role_labels.items():
-        n = counts.get(role, 0)
-        if n > 0:
-            compo.append(f"{n} {label}{'s' if n > 1 and label != 'voyante' else ''}")
-    compo_str = "Composition actuelle : " + ", ".join(compo) + ".\n"
-    # 1. Prompt système
-    base = system_prompts.get(agent.role, "")
-    prompt = regles + compo_str + base + "\n"
+    role_str = f"Rôle : {agent.role}\nObjectif : {objectifs.get(agent.role, '')}"
 
-    # 2. Rappel des règles (optionnel)
-    if game_state.turn <= 2:
-        prompt += "Rappel des règles : Discussion > Vote > Nuit. Le but de ton rôle est décrit ci-dessus.\n"
+    # 6. Mémoire personnelle
+    mem = agent.memory.get_recent(5)
+    mem_str = "Mémoire personnelle :\n" + ("\n".join(f"- {m}" for m in mem) if mem else "(aucun événement)")
 
-    # 3. État du jeu
-    prompt += f"Tour actuel : {game_state.turn}\n"
-    prompt += f"Joueurs encore en vie : {', '.join([f'{a.agent_id} - {a.name}' for a in game_state.agents if a.status == 'alive'])}\n"
-
-    # 4. Morts précédents (on prend les messages du channel 'public' qui annoncent les morts)
-    morts_logs = [msg for msg in game_state.logs.get("public", []) if "a été tué" in msg or "a été éliminé" in msg]
-    if morts_logs:
-        prompt += "Morts précédents :\n\t• " + "\n\t• ".join(morts_logs[-3:]) + "\n"
-    else:
-        prompt += "Aucun mort pour l'instant.\n"
-
-    # 5. Mémoire personnelle de l'agent
-    mem = agent.memory.get_recent(3)
-    if mem:
-        prompt += "Mémoire :\n\t• " + "\n\t• ".join(mem) + "\n"
-    else:
-        prompt += "Mémoire : (aucun événement marquant)\n"
-
-    # 6. Historique des discussions accessibles (channels)
-    # Tout le monde a accès à 'public'
-    # Les loups à 'wolves', la voyante à 'seer'
-    discussions = []
-    discussions += game_state.logs.get("public", [])[-3:]
-    if agent.role == "Werewolf":
-        discussions += game_state.logs.get("wolves", [])[-3:]
-    if agent.role == "Seer":
-        discussions += game_state.logs.get("seer", [])[-3:]
-    # On retire les doublons tout en gardant l'ordre
+    # 7. Historique des channels accessibles
+    channels = list(game_state.subscriptions.get(agent.agent_id, []))
+    if "public" not in channels:
+        channels.append("public")
+    logs = []
+    for ch in channels:
+        logs += game_state.logs.get(ch, [])[-10:]
     seen = set()
-    discussions_unique = []
-    for msg in discussions:
+    logs_unique = []
+    for msg in logs:
         if msg not in seen:
-            discussions_unique.append(msg)
+            logs_unique.append(msg)
             seen.add(msg)
-    if discussions_unique:
-        prompt += "Discussions accessibles :\n\t• " + "\n\t• ".join(discussions_unique[-3:]) + "\n"
-    else:
-        prompt += "Discussions accessibles : (aucune discussion récente)\n"
+    histo_str = "Historique accessible :\n" + ("\n".join(f"- {m}" for m in logs_unique[-10:]) if logs_unique else "(aucun événement)")
 
-    # 7. Instruction/action à exécuter
-    if action == "talk":
-        prompt += "Répond aux derniers messages, de façon naturelle comme dans une discussion. Attention ce que tu dis est publique. Parle dans le but de défendre ton rôle et de convaincre les autres joueurs. Sois très concis."
-    elif action == "vote":
-        prompt += "Vote pour éliminer un joueur encore vivant du village. Attention ce vote est publique. Agis dans l'intérêt de ton camp et dans ton intérêt. Réponds uniquement par celui que tu veux éliminer : ID - NOM - RAISON"
-    elif action == "spy":
-        prompt += "Choisis un joueur dont tu souhaites connaitre le rôle (que tu ne connais pas déjà) pour aider les villageois à démasquer les loups."
-    elif action == "vote_to_kill":
-        prompt += "Choisis une victime à éliminer dans l'intérêt des loups."
-    else:
-        prompt += "Agis selon l'action demandée."
+    # 8. Consigne d'action claire
+    consignes = {
+        "talk": "Réponds aux discussions du village de façon naturelle et informelle. Sois concis, pertinent, et défends ton camp.",
+        "vote": "Vote pour éliminer un joueur vivant dans le but de ton camp. Réponds uniquement par : ID - NOM - RAISON.",
+        "spy": "Choisis un joueur dont tu veux connaitre le rôle, dans le but de ton camp. Réponds uniquement par l'ID.",
+        "vote_to_kill": "Choisis une victime à éliminer, dans le but de ton camp. Réponds uniquement par l'ID."
+    }
+    consigne = consignes.get(action, "Agis selon l'action demandée.")
+
+    # Construction finale structurée
+    prompt = (
+        intro + "\n\n" +
+        joueurs_str + "\n\n" +
+        regles + "\n" +
+        structure + "\n\n" +
+        role_str + "\n\n" +
+        mem_str + "\n\n" +
+        histo_str + "\n\n" +
+        f"Action demandée : {consigne}"
+    )
     return prompt
